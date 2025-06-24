@@ -2,6 +2,8 @@ package server
 
 import (
 	"abuse/db/postgres"
+	"abuse/db/redis"
+	"abuse/pkg/mail"
 	"encoding/json"
 	"log"
 	"log/slog"
@@ -55,7 +57,7 @@ func Run(envType *string) {
 	if err != nil {
 		logrus.Fatalf("Unable to resolve home directory: %v", err)
 	}
-	viper.AddConfigPath(filepath.Join(homeDir, ".hornet"))
+	viper.AddConfigPath(filepath.Join(homeDir, ".sck"))
 
 	if err := viper.ReadInConfig(); err != nil {
 		logrus.Fatalf("Error reading config file: %v", err)
@@ -64,10 +66,18 @@ func Run(envType *string) {
 	logrus.Infof("Using config file: %s", viper.ConfigFileUsed())
 	// Initialize Postgres connection
 	postgres := postgres.NewPostgres()
+	redis := redis.NewRedis(envType)
 
 	server := &Server{
 		router:   mux.NewRouter(),
 		postgres: postgres,
+		user:     postgres,
+		mail: mail.NewMail(
+			viper.GetString("mail_id"),
+			viper.GetString("mail_pass"),
+			viper.GetString("app_pass"),
+		),
+		sessmanager: redis,
 	}
 	server.RegisterRoutes()
 

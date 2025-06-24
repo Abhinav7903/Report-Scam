@@ -7,8 +7,10 @@ CREATE TABLE users (
     email TEXT UNIQUE NOT NULL,
     name TEXT,
     contact_info TEXT,
-    created_at TIMESTAMP DEFAULT NOW()
+    created_at TIMESTAMP DEFAULT NOW(),
+    isVerified BOOLEAN DEFAULT FALSE
 );
+
 
 -- REPORTERS TABLE
 CREATE TABLE reporters (
@@ -17,7 +19,8 @@ CREATE TABLE reporters (
     email TEXT,
     affiliation TEXT,
     total_reports INT DEFAULT 0,
-    created_at TIMESTAMP DEFAULT NOW()
+    created_at TIMESTAMP DEFAULT NOW(),
+    isVerified BOOLEAN DEFAULT FALSE
 );
 
 -- REPORT TYPES TABLE
@@ -37,6 +40,7 @@ CREATE TABLE reports (
     is_public BOOLEAN DEFAULT TRUE,
     status TEXT DEFAULT 'Open',
     created_at TIMESTAMP DEFAULT NOW()
+    
 );
 
 -- CASE METADATA TABLE

@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"sync"
 
+	_ "github.com/lib/pq" // PostgreSQL driver
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 )
@@ -23,6 +24,7 @@ func NewPostgres() *Postgres {
 }
 
 func createConnection() *sql.DB {
+
 	db, err := sql.Open("postgres", viper.GetString("postgresURL"))
 	if err != nil {
 		panic(err)

@@ -4,10 +4,16 @@ import (
 	"abuse/factory"
 	"fmt"
 
+	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 )
 
 func (p *Postgres) CreateUser(data factory.User) (string, error) {
+
+	if data.ID == "" {
+		data.ID = uuid.New().String()
+	}
+
 	switch data.UserType {
 	case "user":
 		query := `INSERT INTO users (id, email, name, contact_info, created_at) 
@@ -38,24 +44,63 @@ func (p *Postgres) CreateUser(data factory.User) (string, error) {
 	}
 }
 
-func (p *Postgres) GetUser(email string) (factory.User, error) {
-	query := `SELECT id, email, name, contact_info, affiliation, total_reports, user_type, created_at
-			  FROM users WHERE email = $1
-			  UNION ALL
-			  SELECT id, email, name, contact_info, affiliation, total_reports, user_type, created_at
-			  FROM reporters WHERE email = $1`
-	row := p.dbConn.QueryRow(query, email)
-
-	var user factory.User
-	err := row.Scan(&user.ID, &user.Email, &user.Name, &user.ContactInfo,
-		&user.Affiliation, &user.TotalReports, &user.UserType, &user.CreatedAt)
+func (p *Postgres) VerifyEmail(email string) error {
+	// First, try to update users
+	res, err := p.dbConn.Exec(`UPDATE users SET isVerified = TRUE WHERE email = $1`, email)
 	if err != nil {
-		logrus.Error("Error retrieving user:", err)
-		return factory.User{}, err
+		return fmt.Errorf("failed to verify email in users: %w", err)
 	}
 
-	logrus.Info("User retrieved successfully:", user.Email)
-	return user, nil
+	rowsAffected, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to check rows affected: %w", err)
+	}
+
+	if rowsAffected > 0 {
+		return nil // Email found and verified in users
+	}
+
+	// Try reporters next
+	res, err = p.dbConn.Exec(`UPDATE reporters SET isVerified = TRUE WHERE email = $1`, email)
+	if err != nil {
+		return fmt.Errorf("failed to verify email in reporters: %w", err)
+	}
+
+	rowsAffected, err = res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to check rows affected for reporters: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("email %s not found in users or reporters", email)
+	}
+
+	return nil
+}
+
+func (p *Postgres) GetUser(email string) (factory.User, error) {
+	var user factory.User
+
+	// Check in users table
+	queryUser := `SELECT id, email, name, contact_info, created_at FROM users WHERE email = $1`
+	err := p.dbConn.QueryRow(queryUser, email).Scan(&user.ID, &user.Email, &user.Name, &user.ContactInfo, &user.CreatedAt)
+	if err == nil {
+		user.UserType = "user"
+		logrus.Info("User retrieved from users table:", user.Email)
+		return user, nil
+	}
+
+	// Check in reporters table
+	queryReporter := `SELECT id, email, name, affiliation, total_reports, created_at FROM reporters WHERE email = $1`
+	err = p.dbConn.QueryRow(queryReporter, email).Scan(&user.ID, &user.Email, &user.Name, &user.Affiliation, &user.TotalReports, &user.CreatedAt)
+	if err == nil {
+		user.UserType = "reporter"
+		logrus.Info("User retrieved from reporters table:", user.Email)
+		return user, nil
+	}
+
+	logrus.Error("Error retrieving user:", err)
+	return factory.User{}, err
 }
 
 func (p *Postgres) IsReporter(email string) (bool, error) {

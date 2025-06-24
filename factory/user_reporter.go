@@ -9,4 +9,5 @@ type User struct {
 	TotalReports int    `json:"total_reports,omitempty"`
 	UserType     string `json:"user_type"` // "user" or "reporter"
 	CreatedAt    string `json:"created_at"`
+	Verified     bool   `json:"verified,omitempty"` // for users
 }

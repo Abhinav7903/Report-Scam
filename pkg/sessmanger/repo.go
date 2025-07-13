@@ -7,6 +7,6 @@ type Repository interface {
 	// gets back email from hash
 	GetEmailFromHash(string) (string, error)
 
-	//generates a new token for passowrd reset
+	//Generates a new token for passowrd reset
 	GenerateToken(string) (string, error)
 }
